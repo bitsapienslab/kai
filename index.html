@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10261f" />
+    <meta name="description" content="RISE — helping young people rise above the noise and build their direction." />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="ui.css" />
+    <title>RISE — rise above the noise</title>
+  </head>
+  <body>
+    <section id="auth-screen" class="auth-screen">
+      <div class="auth-card"><div class="brand auth-brand"><span class="brand-mark">✦</span><span>Bússola</span></div><span class="eyebrow">NORTE · PURPOSE, AGENCY AND ACTION</span><h1>Find your direction.</h1><p>Sign in to continue your journey with Kai.</p><form id="login-form"><label>Email<input id="login-email" type="email" required placeholder="you@example.com"></label><label>Password<input id="login-password" type="password" required placeholder="••••••••••"></label><button class="primary" type="submit">Sign in <span>→</span></button><p id="login-error" class="form-error"></p></form><details><summary>First time here?</summary><form id="register-form"><label>Name<input id="register-name" required></label><label>Email<input id="register-email" type="email" required></label><label>Password<input id="register-password" type="password" minlength="10" required></label><label>Organization name (admin)<input id="register-tenant"></label><button class="outline" type="submit">Create account</button></form></details></div>
+    </section>
+    <div class="grain"></div>
+    <div class="app-shell" id="app-shell" hidden>
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">✦</span><span>Bússola</span></div>
+        <p class="eyebrow">Your next step</p>
+        <nav>
+          <button class="nav-item active" data-view="home"><span>◒</span> Today</button>
+          <button class="nav-item" data-view="objectives"><span>◎</span> Objectives</button>
+          <button class="nav-item" data-view="journal"><span>✎</span> Journal</button>
+          <button class="nav-item" data-view="coach"><span>◌</span> Talk to Kai</button>
+          <button class="nav-item admin-only" data-view="admin"><span>▦</span> Administration</button>
+          <button class="nav-item admin-only" data-view="research"><span>⌁</span> Research</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="streak"><span class="streak-flame">♨</span><div><strong>6 days</strong><small>of consistency</small></div></div>
+          <button class="profile-mini"><span class="avatar">M</span><span><strong id="profile-name">Martim</strong><small>Personal profile</small></span><span>↗</span></button>
+          <button class="side-action" id="install-pwa">＋ Install on phone</button><button class="side-action logout-action" id="logout-button">↪ Sign out</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar"><div><span class="date-label">WEDNESDAY, AUGUST 6</span><h1 id="page-title">Good morning, Martim<span class="sun">☼</span></h1></div><div class="top-actions"><button class="icon-button" aria-label="Notifications">♧<i></i></button><button class="avatar avatar-large">M</button></div></header>
+        <section id="view-home" class="view active-view">
+          <div class="hero-grid">
+            <article class="hero-card"><div class="hero-kicker">Your compass today <span>● online</span></div><h2>Small steps.<br /><em>Real direction.</em></h2><p>You do not need everything figured out. Choose what deserves your attention now.</p><button class="primary" data-view="coach">Start a conversation <span>→</span></button><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div></article>
+            <article class="checkin-card"><div class="card-top"><span class="eyebrow">MORNING CHECK-IN</span><span class="time">2 min</span></div><h3>How are you arriving today?</h3><div class="moods"><button>🌧️<small>Heavy</small></button><button>🌤️<small>Neutral</small></button><button class="selected">☀️<small>Energetic</small></button><button>⚡<small>Electric</small></button></div><button class="text-button" id="checkin-btn">Save my state <span>→</span></button></article>
+          </div>
+          <div class="section-heading"><div><span class="eyebrow">TODAY'S FOCUS</span><h2>One thing at a time.</h2></div><button class="link-button" data-view="objectives">See all →</button></div>
+          <div id="notification-card" class="notification-card" hidden></div>
+          <div class="focus-grid"><article class="objective-card"><div class="objective-icon orange">◒</div><div class="objective-copy"><span class="tag orange-tag">SCHOOL</span><h3>Study mathematics</h3><p>Complete exercises 12–20 from the functions worksheet.</p><div class="progress"><span style="width: 62%"></span></div><small>3 of 5 sessions completed</small></div><button class="more">•••</button></article><article class="accountability-card"><span class="eyebrow">YOUR HARD QUESTION</span><h3>What are you avoiding?</h3><p>Sometimes the task is not the problem. It is the uncomfortable moment before starting.</p><button class="outline" data-view="journal">Write without filters <span>→</span></button></article></div>
+          <div class="section-heading recent-heading"><div><span class="eyebrow">RECENT</span><h2>Your conversations</h2></div></div>
+          <div class="conversation-list"><button class="conversation"><span class="conversation-icon blue">✦</span><span><strong>The conversation you needed</strong><small>Yesterday · Kai</small></span><span class="arrow">→</span></button><button class="conversation"><span class="conversation-icon green">↗</span><span><strong>Plan for exam week</strong><small>August 3 · Kai</small></span><span class="arrow">→</span></button></div>
+        </section>
+        <section id="view-objectives" class="view"><div class="page-intro"><span class="eyebrow">DIRECTION</span><h2>Your objectives.</h2><p>Turn intentions into commitments small enough to start today.</p><button class="primary" id="add-objective">+ New objective</button></div><div class="objective-board" id="objective-board"></div></section>
+        <section id="view-journal" class="view"><div class="page-intro"><span class="eyebrow">PRIVATE JOURNAL</span><h2>What is happening for you?</h2><p>This space is yours. Write to understand, not to impress.</p><textarea id="journal-text" placeholder="Write what is taking up space..."></textarea><button class="primary" id="save-journal">Save reflection <span>→</span></button><p id="journal-status" class="status"></p></div></section>
+        <section id="view-coach" class="view"><div class="chat-layout"><div class="chat-header"><span class="avatar kai">K</span><div><span class="eyebrow">KAI · YOUR MENTOR</span><h2>Let us be honest.</h2></div><span class="online-pill">● available</span></div><div class="messages"><div class="message kai-message">Hi, Martim. I noticed you have kept your six-day consistency. That matters.<br /><br />Now the hard question: what is the one thing you can do today that will make you respect your own word more?</div><div class="message user-message">I think I need to start mathematics, but I keep putting it off.</div></div><div class="composer"><input placeholder="Write to Kai..." /><button>↑</button></div><p class="safety-note">Kai is a digital mentor, not a psychologist. If you are in danger, speak to a trusted adult or call your local emergency number.</p></div></section>
+        <section id="view-admin" class="view admin-view"><div class="page-intro"><span class="eyebrow">ADMINISTRATION</span><h2>Organization status.</h2><p>Accounts, onboarding, consent and activity in one place.</p></div><div class="kpi-grid" id="admin-kpis"></div><div class="admin-table"><div class="table-title"><h3>Users</h3><button class="outline" id="invite-user">+ Invite</button></div><div id="users-list"></div></div></section>
+        <section id="view-research" class="view admin-view"><div class="page-intro"><span class="eyebrow">RESEARCH CONSOLE</span><h2>Learn without surveillance.</h2><p>Authorized, pseudonymized and audited conversations.</p><button class="primary" id="load-research">Load authorized data</button></div><div class="kpi-grid" id="research-kpis"></div><div id="research-list" class="admin-table"></div></section>
+      </main>
+    </div>
+    <section id="onboarding-screen" class="auth-screen" hidden><div class="auth-card onboarding-card"><span class="eyebrow">THE FIRST PART OF YOUR JOURNEY</span><h1>We start with you.</h1><p>This is not a test. It is a starting picture that can change.</p><form id="onboarding-form"><label>What should we call you?<input name="preferred_name" required></label><label>What gives you energy? <input name="energy" placeholder="e.g. creating, people, learning"></label><label>What is making things harder? <input name="difficulty"></label><label>Challenge intensity<select name="challenge_intensity"><option value="normal">Normal · 3 contacts per week</option><option value="light">Light · 2 contacts per week</option><option value="intensive">Temporary intensive · daily</option></select></label><label class="check"><input type="checkbox" name="proactive_consent"> I agree to proactive contacts within my chosen hours.</label><label class="check"><input type="checkbox" name="research_consent"> I agree to take part in authorized research.</label><label class="check"><input type="checkbox" name="terms" required> I accept the terms and confirm my assent.</label><button class="primary" type="submit">Create my map <span>→</span></button></form></div></section>
+    <script src="app.js"></script>
+  </body>
+</html>
