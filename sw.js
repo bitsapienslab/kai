@@ -1,5 +1,5 @@
 self.addEventListener('install', event => event.waitUntil(
-  caches.open('rise-v5').then(cache => cache.addAll([
+  caches.open('rise-v9').then(cache => cache.addAll([
     './',
     'index.html',
     'css/rise.css',
@@ -17,7 +17,7 @@ self.addEventListener('install', event => event.waitUntil(
 ));
 self.addEventListener('activate', event => event.waitUntil(
   caches.keys().then(keys => Promise.all(
-    keys.filter(k => k !== 'rise-v5').map(k => caches.delete(k))
+    keys.filter(k => k !== 'rise-v9').map(k => caches.delete(k))
   ))
 ));
 self.addEventListener('fetch', event => event.respondWith(

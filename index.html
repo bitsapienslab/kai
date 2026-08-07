@@ -165,16 +165,16 @@
             <div class="action-card-copy">
               <div class="action-card-head">
                 <span class="action-target" aria-hidden="true">◎</span>
-                <div>
-                  <span class="eyebrow">REAL-WORLD ACTION</span>
+                <div class="action-card-kicker">
+                  <span class="action-card-label">Real-world action</span>
                   <p class="action-sub">Small step. Real impact.</p>
                 </div>
               </div>
               <h3 id="kai-action-title">—</h3>
-              <span class="tag-pill tag-pill--glow" id="kai-action-tag">Confidence</span>
+              <span class="tag-pill tag-pill--glow" id="kai-action-tag"><span class="tag-dot" aria-hidden="true"></span>Confidence</span>
             </div>
             <div class="action-card-visual">
-              <img src="assets/action-card-bg.png" alt="" />
+              <img src="assets/action-card-bg.png?v=6" alt="" />
               <button class="action-card-go" id="kai-action-open" aria-label="View mission">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -192,46 +192,65 @@
       </section>
 
       <section id="view-journey" class="view">
-        <header class="page-header">
-          <span class="eyebrow">JOURNEY</span>
-          <h2>Your commitments.</h2>
-          <p>Finite experiences that take you somewhere.</p>
-        </header>
-        <div class="journey-actions">
-          <button class="btn btn-primary" id="add-mission-btn">+ New mission</button>
+        <div class="journey-scene">
+          <img src="assets/backgrounds/world-alt.png" alt="" class="scene-bg journey-bg" aria-hidden="true" />
+          <div class="journey-bg-overlay" aria-hidden="true"></div>
+          <div class="journey-content">
+            <header class="page-header">
+              <span class="eyebrow">JOURNEY</span>
+              <h2>Your commitments.</h2>
+              <p>Finite experiences that take you somewhere.</p>
+            </header>
+            <div class="journey-actions">
+              <button class="btn btn-primary" id="add-mission-btn">+ New mission</button>
+            </div>
+            <div id="journey-list" class="card-list"></div>
+          </div>
         </div>
-        <div id="journey-list" class="card-list"></div>
       </section>
 
       <section id="view-progress" class="view">
-        <header class="page-header">
-          <span class="eyebrow">PROGRESS</span>
-          <h2>What became visible.</h2>
-        </header>
-        <div class="stats-grid" id="progress-stats"></div>
-        <h3 class="section-label">Recorded learnings</h3>
-        <div id="evidence-list" class="card-list"></div>
-        <div class="reflect-box glass">
-          <h3>Record a learning</h3>
-          <textarea id="reflect-text" placeholder="What did you discover? What worked?"></textarea>
-          <input id="reflect-competency" placeholder="Area (e.g. social, learning, creative)" />
-          <button class="btn btn-primary" id="reflect-save">Save reflection</button>
-          <p id="reflect-status" class="status-msg"></p>
+        <div class="progress-scene">
+          <img src="assets/backgrounds/world-learning.png" alt="" class="scene-bg progress-bg" aria-hidden="true" />
+          <div class="progress-bg-overlay" aria-hidden="true"></div>
+          <div class="progress-content">
+            <header class="page-header">
+              <span class="eyebrow">PROGRESS</span>
+              <h2>What became visible.</h2>
+              <p>Every action leaves a trace.</p>
+            </header>
+            <div class="stats-grid" id="progress-stats"></div>
+            <h3 class="section-label">Recorded learnings</h3>
+            <div id="evidence-list" class="card-list"></div>
+            <div class="reflect-box glass">
+              <h3>Record a learning</h3>
+              <textarea id="reflect-text" placeholder="What did you discover? What worked?"></textarea>
+              <input id="reflect-competency" placeholder="Area (e.g. social, learning, creative)" />
+              <button class="btn btn-primary" id="reflect-save">Save reflection</button>
+              <p id="reflect-status" class="status-msg"></p>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="view-me" class="view">
-        <header class="page-header">
-          <span class="eyebrow">PROFILE</span>
-          <h2 id="me-name">—</h2>
-          <p id="me-email" class="muted">—</p>
-        </header>
-        <div class="me-menu glass">
-          <button class="me-item" id="install-pwa">📲 Install on phone</button>
-          <a class="me-item" href="admin/index.html">⚙ Administration</a>
-          <button class="me-item danger" id="logout-button">↪ Sign out</button>
+        <div class="me-scene">
+          <img src="assets/backgrounds/world-social.png" alt="" class="scene-bg me-bg" aria-hidden="true" />
+          <div class="me-bg-overlay" aria-hidden="true"></div>
+          <div class="me-content">
+            <header class="page-header">
+              <span class="eyebrow">PROFILE</span>
+              <h2 id="me-name">—</h2>
+              <p id="me-email" class="muted">—</p>
+            </header>
+            <div class="me-menu glass">
+              <button class="me-item" id="install-pwa">📲 Install on phone</button>
+              <a class="me-item" href="admin/index.html">⚙ Administration</a>
+              <button class="me-item danger" id="logout-button">↪ Sign out</button>
+            </div>
+            <div class="district-map glass" id="me-districts"></div>
+          </div>
         </div>
-        <div class="district-map glass" id="me-districts"></div>
       </section>
     </main>
 
