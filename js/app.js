@@ -53,6 +53,19 @@ function el(tag, cls, text) {
 
 function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
+function setActionTag(label) {
+  const tag = $('#kai-action-tag');
+  if (!tag) return;
+  let dot = tag.querySelector('.tag-dot');
+  if (!dot) {
+    dot = document.createElement('span');
+    dot.className = 'tag-dot';
+    dot.setAttribute('aria-hidden', 'true');
+  }
+  clear(tag);
+  tag.append(dot, document.createTextNode(label));
+}
+
 function showScreen(id) {
   $$('.screen').forEach((s) => { s.hidden = s.id !== id; });
 }
@@ -61,15 +74,16 @@ function initKaiScreen() {
   const card = $('#kai-action-card');
   if (!card || card.dataset.ready) return;
   card.dataset.ready = '1';
-  card.hidden = false;
   $('#kai-action-title').textContent = 'Share one idea in class today, even if your voice shakes.';
-  $('#kai-action-tag').textContent = 'Confidence';
+  setActionTag('Confidence');
   activeMission = {
     title: 'Share one idea in class',
     hypothesis: 'Build social confidence',
     action: 'Share one idea in class today, even if your voice shakes.',
     proof: 'Write one sentence about what you noticed.',
   };
+  // Keep hidden if user already dismissed this session; re-shows on new Kai action
+  card.hidden = sessionStorage.getItem('kai-action-dismissed') === '1';
 }
 
 const DISTRICT_META = {
@@ -222,7 +236,10 @@ async function sendKaiMessage(text) {
 
 function maybeShowActionCard(answer) {
   if (answer.length <= 20) return;
-  $('#kai-action-card').hidden = false;
+  // New action from Kai always surfaces the card and clears any prior dismiss
+  sessionStorage.removeItem('kai-action-dismissed');
+  const card = $('#kai-action-card');
+  card.hidden = false;
   $('#kai-action-title').textContent = answer.length > 120 ? `${answer.slice(0, 117)}…` : answer;
   activeMission = { title: 'Kai suggested action', hypothesis: 'Build a real skill', action: answer, proof: 'Record what happened' };
 }
@@ -281,7 +298,7 @@ async function loadJourney() {
 }
 
 function renderStat(value, label) {
-  const s = el('div', 'stat glass');
+  const s = el('div', 'stat-card glass');
   s.append(el('strong', null, String(value)), el('span', null, label));
   return s;
 }
@@ -468,6 +485,12 @@ $('#kai-chips').addEventListener('click', (e) => {
 });
 
 $('#kai-action-open').addEventListener('click', () => { if (activeMission) openMission(activeMission); });
+
+$('#kai-action-dismiss').addEventListener('click', () => {
+  const card = $('#kai-action-card');
+  card.hidden = true;
+  sessionStorage.setItem('kai-action-dismissed', '1');
+});
 
 $('#next-move-go').addEventListener('click', () => {
   const card = $('#next-move-card');

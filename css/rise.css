@@ -582,15 +582,15 @@ form {
   transform: translateX(-50%);
   width: min(100%, var(--shell-max));
   height: calc(var(--nav-height) + var(--safe-bottom));
-  padding: 8px 12px calc(8px + var(--safe-bottom));
+  padding: 6px 8px calc(6px + var(--safe-bottom));
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 2px;
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(22px) saturate(1.25);
-  -webkit-backdrop-filter: blur(22px) saturate(1.25);
-  border-top: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 -8px 28px rgba(91, 79, 207, 0.1);
+  background: rgba(14, 11, 30, 0.86);
+  backdrop-filter: blur(28px) saturate(1.6);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.28);
   z-index: 50;
 }
 
@@ -599,66 +599,40 @@ form {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   padding: 4px 2px;
-  border-radius: 14px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--rise-muted);
-  transition: color 0.15s ease, background 0.15s ease;
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: rgba(220, 215, 255, 0.42);
+  min-height: 44px;
+  transition: color 0.18s ease;
 }
 
 .nav-icon {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 10px;
   color: inherit;
+  transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
 }
 
 .nav-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .nav-btn.active {
-  color: var(--rise-purple-dark);
+  color: #fff;
 }
 
-.nav-btn.active .nav-icon--world,
 .nav-btn.active .nav-icon {
-  background: linear-gradient(135deg, var(--rise-purple), var(--rise-purple-dark));
+  background: linear-gradient(140deg, var(--rise-purple), var(--rise-purple-dark));
   color: #fff;
-  box-shadow: 0 4px 14px rgba(91, 79, 207, 0.35);
-}
-
-#view-kai.active ~ .bottom-nav,
-.app-shell:has(#view-kai.active) .bottom-nav {
-  background: rgba(12, 10, 28, 0.72);
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
-
-.app-shell:has(#view-kai.active) .nav-btn {
-  color: rgba(240, 238, 255, 0.55);
-}
-
-.app-shell:has(#view-kai.active) .nav-btn.active {
-  color: #fff;
-}
-
-/* fallback for browsers without :has */
-.app-shell--kai .bottom-nav {
-  background: rgba(12, 10, 28, 0.82);
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
-
-.app-shell--kai .nav-btn {
-  color: rgba(240, 238, 255, 0.55);
-}
-
-.app-shell--kai .nav-btn.active {
-  color: #fff;
+  box-shadow: 0 3px 14px rgba(91, 79, 207, 0.5);
 }
 
 /* --------------------------------------------------------------------------
@@ -1289,6 +1263,31 @@ form {
   transform: translateY(-50%) scale(0.96);
 }
 
+.action-card-dismiss {
+  margin-left: auto;
+  flex-shrink: 0;
+  align-self: flex-start;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.45);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, transform 0.12s;
+}
+
+.action-card-dismiss:hover {
+  background: rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.action-card-dismiss:active {
+  transform: scale(0.9);
+}
+
 .tag-pill {
   display: inline-flex;
   align-items: center;
@@ -1635,19 +1634,6 @@ form {
   color: #5ecfb8;
 }
 
-/* Dark nav when journey is active */
-.app-shell:has(#view-journey.active) .bottom-nav {
-  background: rgba(12, 10, 28, 0.72);
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
-
-.app-shell:has(#view-journey.active) .nav-btn {
-  color: rgba(240, 238, 255, 0.55);
-}
-
-.app-shell:has(#view-journey.active) .nav-btn.active {
-  color: #fff;
-}
 
 /* --------------------------------------------------------------------------
    Page headers (Journey, Progress, Me)
@@ -1917,6 +1903,12 @@ form {
   color: #9de8d6;
 }
 
+#view-progress .tag-pill {
+  background: rgba(20, 14, 40, 0.72);
+  color: #ddd6fe;
+  border: 1px solid rgba(196, 181, 253, 0.28);
+}
+
 /* Reflect box as frosted glass */
 #view-progress .reflect-box {
   background: rgba(255, 255, 255, 0.08);
@@ -1944,19 +1936,6 @@ form {
   color: rgba(240, 238, 255, 0.38);
 }
 
-/* Dark nav when progress is active */
-.app-shell:has(#view-progress.active) .bottom-nav {
-  background: rgba(4, 18, 24, 0.72);
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
-
-.app-shell:has(#view-progress.active) .nav-btn {
-  color: rgba(240, 238, 255, 0.55);
-}
-
-.app-shell:has(#view-progress.active) .nav-btn.active {
-  color: #fff;
-}
 
 /* --------------------------------------------------------------------------
    Me view – full-bleed scene
@@ -2012,20 +1991,6 @@ form {
   color: rgba(240, 238, 255, 0.50);
 }
 
-
-/* Dark nav when me is active */
-.app-shell:has(#view-me.active) .bottom-nav {
-  background: rgba(18, 8, 30, 0.72);
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
-
-.app-shell:has(#view-me.active) .nav-btn {
-  color: rgba(240, 238, 255, 0.55);
-}
-
-.app-shell:has(#view-me.active) .nav-btn.active {
-  color: #fff;
-}
 
 /* me-menu as frosted glass */
 .me-menu {
@@ -2106,20 +2071,6 @@ form {
 
 .district-row:last-child {
   border-bottom: none;
-}
-
-/* Dark nav when Me is active */
-.app-shell:has(#view-me.active) .bottom-nav {
-  background: rgba(18, 8, 30, 0.72);
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
-
-.app-shell:has(#view-me.active) .nav-btn {
-  color: rgba(240, 238, 255, 0.55);
-}
-
-.app-shell:has(#view-me.active) .nav-btn.active {
-  color: #fff;
 }
 
 .energy-dot {

@@ -5,3 +5,11 @@ __pycache__/
 .env.*
 .DS_Store
 *.log
+
+# Accidental browser save-as page dumped into mockups/, not project content.
+mockups/Biblioteca de Prompts RISE.html
+mockups/Biblioteca de Prompts RISE_files/
+
+# Local debug / browser tooling
+website/.playwright-mcp/
+website/_debug*.png
