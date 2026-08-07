@@ -204,4 +204,7 @@ class ConversationEvent(Base):
     topic: Mapped[str] = mapped_column(String(80), default="general")
     user_message: Mapped[str] = mapped_column(Text)
     assistant_message: Mapped[str] = mapped_column(Text)
+    # Structured insights extracted from this conversation turn
+    # keys: topics, has_goal, has_blocker, emotional_tone
+    extracted_insights: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

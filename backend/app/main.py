@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from datetime import datetime, timedelta
 from secrets import token_urlsafe
 from sqlalchemy import func, select
@@ -9,9 +10,12 @@ from .config import settings
 from .db import Base, engine, get_db
 from .dependencies import CurrentUser, current_user, require_roles
 from .guardrails import inspect_message, kai_system_prompt, safety_category
+from .llm import extract_insights, get_provider
 from .models import AdaptiveProfile, AuditEvent, Consent, ConversationEvent, Evidence, GuardianYouth, Invitation, Mission, Objective, ProactiveNotification, ProactivePreference, PushSubscription, RefreshSession, SafetyCase, Tenant, User
 from .schemas import AdaptiveFeedback, ChatRequest, CommitmentCreate, ConsentUpdate, EvidenceCreate, InviteCreate, LoginRequest, MissionCreate, MissionFeedback, MissionStatusUpdate, NotificationFeedback, ObjectiveUpdate, OnboardingUpdate, ProactivePreferenceUpdate, PushSubscriptionCreate, RefreshRequest, RegisterRequest
 from .security import ACCESS_MINUTES, REFRESH_DAYS, create_token, decode_token, hash_password, verify_password
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="RISE API", version="0.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -38,7 +42,8 @@ def pseudonym(tenant_id: str, user_id: str) -> str:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "rise-api", "model": settings.model_name}
+    provider = get_provider()
+    return {"status": "ok", "service": "rise-api", "model": provider.model_name, "llm": type(provider).__name__}
 
 @app.post("/auth/register")
 def register(body: RegisterRequest, db: Session = Depends(get_db)) -> dict:
@@ -267,19 +272,60 @@ def proactive_feedback(notification_id: str, body: NotificationFeedback, identit
 
 @app.post("/v1/openwebui/chat/completions")
 def openwebui_chat(body: ChatRequest, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    # Safety check runs before any LLM call — never paywalled
     safety = inspect_message(body.message)
+
+    insights = extract_insights(body.message)
+    topic = insights.get("topics", ["general"])[0]
+
     if safety.action != "allow":
         answer = safety.response
-    elif any(w in body.message.lower() for w in ["desafio", "challenge", "difícil", "hard", "difficult"]):
-        answer = "Ok. Here is something small: choose a 2-minute conversation with someone you normally ignore. It does not need to be deep — just real."
-    elif any(w in body.message.lower() for w in ["fácil", "easier", "simples", "demais", "simple", "too much"]):
-        answer = "Fair. Let's reduce it: instead of the full action, do just the first part — open the book, send the message, or walk into the room. That counts."
-    elif any(w in body.message.lower() for w in ["hoje não", "not today", "não consigo", "cansado", "can't", "tired"]):
-        answer = "That's okay. Today is not a day to force it. Do you want to record what's blocking you, or come back tomorrow with calm?"
     else:
-        answer = "Let's make this concrete. What is under your control right now, and what is the smallest action you can test in the next few hours?"
-    event = ConversationEvent(tenant_id=identity.user.tenant_id, user_id=identity.user.id, pseudonym=pseudonym(identity.user.tenant_id, identity.user.id), risk_level=safety.level, user_message=body.message, assistant_message=answer); db.add(event); db.commit()
-    return {"id": event.id, "object": "chat.completion", "model": settings.model_name, "choices": [{"index": 0, "message": {"role": "assistant", "content": answer}, "finish_reason": "stop"}], "safety": {"level": safety.level, "action": safety.action}}
+        # Load the last 10 conversation turns for context (oldest first)
+        history = list(reversed(
+            db.scalars(
+                select(ConversationEvent)
+                .where(ConversationEvent.user_id == identity.user.id)
+                .order_by(ConversationEvent.created_at.desc())
+                .limit(10)
+            ).all()
+        ))
+
+        messages: list[dict] = [{"role": "system", "content": kai_system_prompt()}]
+        for ev in history:
+            messages.append({"role": "user", "content": ev.user_message})
+            messages.append({"role": "assistant", "content": ev.assistant_message})
+        messages.append({"role": "user", "content": body.message})
+
+        try:
+            answer = get_provider().chat(messages)
+        except Exception as exc:
+            logger.error("LLM call failed: %s", exc)
+            answer = (
+                "Tive um problema técnico agora. "
+                "Tenta de novo daqui a pouco — estou aqui."
+            )
+
+    event = ConversationEvent(
+        tenant_id=identity.user.tenant_id,
+        user_id=identity.user.id,
+        pseudonym=pseudonym(identity.user.tenant_id, identity.user.id),
+        risk_level=safety.level,
+        topic=topic,
+        user_message=body.message,
+        assistant_message=answer,
+        extracted_insights=insights,
+    )
+    db.add(event)
+    db.commit()
+
+    return {
+        "id": event.id,
+        "object": "chat.completion",
+        "model": get_provider().model_name,
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": answer}, "finish_reason": "stop"}],
+        "safety": {"level": safety.level, "action": safety.action},
+    }
 
 @app.get("/admin/users")
 def admin_users(identity: CurrentUser = Depends(require_roles("organization_admin", "platform_admin")), db: Session = Depends(get_db)) -> dict:
