@@ -1,24 +1,6 @@
-# RISE V1
-
-Functional snapshot of the RISE product before Liquid Focus.
+# RISE V1 — Mobile PWA
 
 **Claim:** Rise above the noise. Build your direction.
-
-## Included
-
-- Responsive installable PWA dashboard.
-- Login, registration, refresh token and logout.
-- Youth onboarding.
-- Today dashboard with check-in, objectives and recent conversations.
-- Objectives area.
-- Private journal.
-- Kai conversation.
-- User administration and invitations.
-- Authorized Research Console.
-- Consent and audit records.
-- Basic operational analytics.
-- Individual commitment notifications.
-- FastAPI backend with PostgreSQL and pgvector.
 
 ## Run locally
 
@@ -34,7 +16,32 @@ cd v1
 docker compose up
 ```
 
-- PWA: `http://localhost:4173`
-- API docs: `http://localhost:8000/docs`
+- **PWA:** http://localhost:4173
+- **API docs:** http://localhost:8000/docs
+- **Admin:** http://localhost:4173/admin/
 
-The root application is RISE V2 Liquid Focus. This folder keeps the RISE V1 dashboard experience with its original visible sections.
+## What's included
+
+- Mobile-first PWA with World · Kai · Journey · Progress · Me navigation
+- Living world home screen with 6 development districts
+- Kai conversation with response chips and real-world action cards
+- Mission flow (accept → complete → growth feedback)
+- Journey (missions & objectives), Progress (evidence), Profile
+- Auth, onboarding, multi-tenant backend
+- Admin & research console at `/admin/`
+
+## Demo accounts
+
+Run once (with Docker API + Postgres up):
+
+```bash
+cd v1/backend
+pip install -r requirements.txt
+python seed_demo.py
+```
+
+| Email | Password | Role | Access |
+|-------|----------|------|--------|
+| `youth@rise.dev` | `RiseDemo2026!` | Youth | Main app |
+| `admin@rise.dev` | `RiseDemo2026!` | Organization admin | App + admin console |
+| `researcher@rise.dev` | `RiseDemo2026!` | Researcher | App + admin + research view |

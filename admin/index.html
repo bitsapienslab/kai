@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#5b4fcf" />
+  <title>RISE — Administration Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+<!-- ── Auth screen ── -->
+<div id="auth-screen" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo"><span class="mark">✦</span><span>RISE</span></div>
+    <div class="auth-badge">▦ Restricted access</div>
+    <h1>Administration console</h1>
+    <p>Only authorized administrators and researchers can access this area.</p>
+    <form id="login-form">
+      <label>
+        Email
+        <input id="login-email" type="email" required placeholder="admin@organization.com" autocomplete="email" />
+      </label>
+      <label>
+        Password
+        <input id="login-password" type="password" required placeholder="••••••••••" autocomplete="current-password" />
+      </label>
+      <button class="btn-primary" type="submit" id="login-btn">Sign in →</button>
+      <p id="login-error" class="form-error"></p>
+    </form>
+    <p style="margin-top:1.25rem; font-size:.82rem; color:var(--text-muted); text-align:center;">
+      <a href="../index.html" style="color:var(--brand); text-decoration:none;">← Back to main app</a>
+    </p>
+  </div>
+</div>
+
+<!-- ── App shell (hidden until login) ── -->
+<div id="app-shell" class="app-shell" hidden>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo"><span class="mark">✦</span><span>RISE</span></div>
+    <div class="sidebar-subtitle">Admin</div>
+    <nav>
+      <button class="nav-item active" data-view="admin">
+        <span class="icon">▦</span><span>Dashboard Admin</span>
+      </button>
+      <button class="nav-item" data-view="research" id="research-nav-item">
+        <span class="icon">⌁</span><span>Research</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-mini">
+        <div class="avatar" id="user-avatar">?</div>
+        <div class="user-info">
+          <strong id="user-name">—</strong>
+          <small id="user-role">—</small>
+        </div>
+      </div>
+      <div class="sidebar-links">
+        <a href="../index.html" class="sidebar-link">
+          <span class="icon">↩</span><span>Main app</span>
+        </a>
+        <button class="sidebar-link" id="logout-btn">
+          <span class="icon">↪</span><span>Sign out</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-content">
+
+    <!-- Admin View -->
+    <section id="view-admin" class="view-section">
+      <div class="page-header">
+        <div class="page-eyebrow">Administration</div>
+        <h1>Organization status</h1>
+        <p>Accounts, invitations, consent and activity in one place.</p>
+      </div>
+      <div id="admin-kpis" class="kpi-grid"></div>
+      <div class="section-card">
+        <div class="section-header">
+          <h2>Users</h2>
+          <button class="btn-outline" id="invite-btn">+ Invite</button>
+        </div>
+        <div class="section-body">
+          <table class="data-table" id="users-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Onboarding</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Research View -->
+    <section id="view-research" class="view-section" hidden>
+      <div class="page-header">
+        <div class="page-eyebrow">Research Console</div>
+        <h1>Authorized pseudonymized data</h1>
+        <p>Audited access to conversations for pilot review.</p>
+      </div>
+      <div id="research-kpis" class="kpi-grid"></div>
+      <div class="section-card">
+        <div class="section-header">
+          <h2 id="research-heading">Authorized conversations</h2>
+          <button class="btn-outline" id="refresh-research-btn">↺ Refresh</button>
+        </div>
+        <div id="research-list" class="section-body"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ── Invite modal ── -->
+<div id="invite-modal" class="modal-backdrop" hidden>
+  <div class="modal">
+    <h2>Invite user</h2>
+    <p>The invite link will be generated and shown here. Copy and send it manually.</p>
+    <label>
+      Guest email
+      <input id="invite-email" type="email" placeholder="name@example.com" />
+    </label>
+    <label style="margin-top:.75rem;">
+      Role
+      <select id="invite-role" style="padding:.65rem .85rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;background:var(--bg);color:var(--text);">
+        <option value="youth">Youth</option>
+        <option value="guardian">Guardian</option>
+        <option value="researcher">Researcher</option>
+        <option value="organization_admin">Organization admin</option>
+      </select>
+    </label>
+    <div id="invite-result" style="margin-top:.75rem;font-size:.85rem;display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="invite-cancel">Cancel</button>
+      <button class="btn-primary" id="invite-submit" style="width:auto;">Create invite</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Config ── */
+  const API_BASE = localStorage.getItem('rise_api') ||
+    (['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://localhost:8000' : '');
+
+  const ADMIN_ROLES = ['organization_admin', 'platform_admin', 'researcher'];
+  const ROLE_LABELS = {
+    youth: 'Youth', guardian: 'Guardian', researcher: 'Researcher',
+    organization_admin: 'Org admin', platform_admin: 'Platform admin'
+  };
+  const ONBOARDING_LABELS = { complete: 'Complete', pending: 'Pending', skipped: 'Skipped' };
+
+  /* ── Session ── */
+  let session = (() => {
+    try { return JSON.parse(localStorage.getItem('bussola_session') || 'null'); } catch { return null; }
+  })();
+
+  function saveSession(data) {
+    session = data;
+    localStorage.setItem('bussola_session', JSON.stringify(data));
+  }
+
+  function clearSession() {
+    session = null;
+    localStorage.removeItem('bussola_session');
+  }
+
+  /* ── API helper ── */
+  async function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const response = await fetch(API_BASE + path, { ...options, headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(typeof data.detail === 'string' ? data.detail : 'The operation could not be completed.');
+    }
+    return data;
+  }
+
+  /* ── DOM helper: create element with text content and optional class ── */
+  function makeEl(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  /* ── Spinner node ── */
+  function makeSpinner(message) {
+    const wrap = makeEl('div', 'state-message');
+    const s = makeEl('span', 'spinner');
+    wrap.appendChild(s);
+    wrap.appendChild(document.createTextNode(' ' + message));
+    return wrap;
+  }
+
+  /* ── DOM refs ── */
+  const authScreen   = document.getElementById('auth-screen');
+  const appShell     = document.getElementById('app-shell');
+  const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+
+  function initDemoLogin() {
+    if (!IS_LOCAL) return;
+    document.getElementById('login-email').value = 'admin@rise.dev';
+    document.getElementById('login-password').value = 'RiseDemo2026!';
+    if (loginForm && !document.getElementById('demo-hint')) {
+      const hint = makeEl('p', null, 'Demo mode — click Sign in to continue');
+      hint.id = 'demo-hint';
+      hint.style.cssText = 'font-size:.82rem;color:var(--text-muted);text-align:center;margin:0 0 .75rem;';
+      loginForm.insertBefore(hint, loginForm.firstChild);
+    }
+  }
+
+  const loginForm    = document.getElementById('login-form');
+  const loginError   = document.getElementById('login-error');
+  const loginBtn     = document.getElementById('login-btn');
+  const userAvatar   = document.getElementById('user-avatar');
+  const userName     = document.getElementById('user-name');
+  const userRole     = document.getElementById('user-role');
+  const logoutBtn    = document.getElementById('logout-btn');
+  const inviteModal  = document.getElementById('invite-modal');
+  const viewAdmin    = document.getElementById('view-admin');
+  const viewResearch = document.getElementById('view-research');
+  const researchNavItem = document.getElementById('research-nav-item');
+
+  /* ── Navigation ── */
+  function showView(name) {
+    viewAdmin.hidden    = (name !== 'admin');
+    viewResearch.hidden = (name !== 'research');
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === name);
+    });
+  }
+
+  document.querySelectorAll('.nav-item[data-view]').forEach(btn =>
+    btn.addEventListener('click', () => showView(btn.dataset.view))
+  );
+
+  /* ── Enter app ── */
+  function enterApp(me) {
+    authScreen.hidden = true;
+    appShell.hidden   = false;
+
+    userAvatar.textContent = (me.display_name || me.email || '?').slice(0, 1).toUpperCase();
+    userName.textContent   = me.display_name || me.email || '—';
+    userRole.textContent   = ROLE_LABELS[me.role] || me.role;
+
+    researchNavItem.hidden = !(['researcher', 'platform_admin'].includes(me.role));
+
+    loadAdminDashboard();
+    if (['researcher', 'platform_admin'].includes(me.role)) loadResearch();
+  }
+
+  initDemoLogin();
+
+  /* ── Login ── */
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginError.textContent = '';
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Signing in…';
+    try {
+      const tokens = await api('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email:    document.getElementById('login-email').value.trim(),
+          password: document.getElementById('login-password').value
+        })
+      });
+      saveSession(tokens);
+      const me = await api('/me');
+      session.user = me;
+      saveSession(session);
+
+      if (!ADMIN_ROLES.includes(me.role)) {
+        loginError.textContent = 'Access denied. This console is for administrators and researchers only.';
+        clearSession();
+        return;
+      }
+      enterApp(me);
+    } catch (err) {
+      loginError.textContent = err.message;
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Sign in →';
+    }
+  });
+
+  /* ── Logout ── */
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      if (session?.refresh_token) {
+        await api('/auth/logout', { method: 'POST', body: JSON.stringify({ refresh_token: session.refresh_token }) });
+      }
+    } catch (_) {}
+    clearSession();
+    appShell.hidden   = true;
+    authScreen.hidden = false;
+    if (IS_LOCAL) initDemoLogin();
+    else document.getElementById('login-password').value = '';
+  });
+
+  /* ── KPI rendering (safe DOM) ── */
+  function renderKpis(containerId, kpisObj) {
+    const container = document.getElementById(containerId);
+    container.replaceChildren();
+    if (!kpisObj || !Object.keys(kpisObj).length) {
+      container.appendChild(makeEl('div', 'state-message', 'No metrics available.'));
+      return;
+    }
+    Object.entries(kpisObj).forEach(([key, val]) => {
+      const isRate = key.includes('rate') || key.includes('percent') || key.includes('taxa');
+      const formatted = typeof val === 'number'
+        ? (isRate ? val.toFixed(1) + '%' : val.toLocaleString('en-US'))
+        : String(val);
+      const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const card  = makeEl('div', 'kpi-card');
+      card.appendChild(makeEl('div', 'kpi-value', formatted));
+      card.appendChild(makeEl('div', 'kpi-label', label));
+      container.appendChild(card);
+    });
+  }
+
+  /* ── Users table rendering (safe DOM) ── */
+  function buildUserRow(u) {
+    const tr = document.createElement('tr');
+
+    const tdName = document.createElement('td');
+    tdName.appendChild(makeEl('strong', null, u.display_name || '—'));
+    tr.appendChild(tdName);
+
+    const tdEmail = makeEl('td', null, u.email || '—');
+    tdEmail.style.color = 'var(--text-muted)';
+    tr.appendChild(tdEmail);
+
+    const tdRole = document.createElement('td');
+    const rPill  = makeEl('span', 'pill pill-role', ROLE_LABELS[u.role] || u.role);
+    tdRole.appendChild(rPill);
+    tr.appendChild(tdRole);
+
+    const tdOnb  = document.createElement('td');
+    const oCls   = u.onboarding_status === 'complete' ? 'pill pill-complete' : 'pill pill-pending';
+    const oPill  = makeEl('span', oCls, ONBOARDING_LABELS[u.onboarding_status] || u.onboarding_status);
+    tdOnb.appendChild(oPill);
+    tr.appendChild(tdOnb);
+
+    const tdDate = makeEl('td', null, u.created_at ? new Date(u.created_at).toLocaleDateString('en-US') : '—');
+    tdDate.style.color    = 'var(--text-muted)';
+    tdDate.style.fontSize = '.8rem';
+    tr.appendChild(tdDate);
+
+    return tr;
+  }
+
+  /* ── Admin dashboard ── */
+  async function loadAdminDashboard() {
+    const kpisContainer = document.getElementById('admin-kpis');
+    const tbody = document.getElementById('users-tbody');
+    kpisContainer.replaceChildren(makeSpinner('Loading metrics…'));
+    tbody.replaceChildren(buildLoadingRow(5, 'Loading users…'));
+    try {
+      const [dashboard, usersResp] = await Promise.all([
+        api('/admin/dashboard'),
+        api('/admin/users')
+      ]);
+      renderKpis('admin-kpis', dashboard.kpis || dashboard);
+
+      const users = usersResp.items || usersResp || [];
+      tbody.replaceChildren();
+      if (!users.length) {
+        tbody.appendChild(buildLoadingRow(5, 'No users yet.'));
+        return;
+      }
+      users.forEach(u => tbody.appendChild(buildUserRow(u)));
+    } catch (err) {
+      kpisContainer.replaceChildren(makeEl('div', 'state-message', 'Failed to load metrics: ' + err.message));
+      tbody.replaceChildren(buildLoadingRow(5, 'Could not load users.'));
+    }
+  }
+
+  function buildLoadingRow(cols, message) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = cols;
+    td.className = 'state-message';
+    td.textContent = message;
+    tr.appendChild(td);
+    return tr;
+  }
+
+  /* ── Research rendering (safe DOM) ── */
+  function riskPillClass(level) {
+    if (!level) return 'pill pill-pending';
+    const l = level.toLowerCase();
+    if (l === 'low'    || l === 'baixo') return 'pill pill-low';
+    if (l === 'medium' || l === 'médio') return 'pill pill-medium';
+    if (l === 'high'   || l === 'alto')  return 'pill pill-high';
+    return 'pill pill-pending';
+  }
+
+  function buildResearchRow(row) {
+    const wrap = makeEl('div', 'research-row');
+
+    /* meta bar */
+    const meta = makeEl('div', 'research-meta');
+    meta.appendChild(makeEl('span', null, row.pseudonym || 'Anonymous'));
+    const riskPill = makeEl('span', riskPillClass(row.risk_level), row.risk_level || '—');
+    meta.appendChild(riskPill);
+    meta.appendChild(makeEl('span', null, row.created_at ? new Date(row.created_at).toLocaleString('en-US') : '—'));
+    wrap.appendChild(meta);
+
+    /* exchange bubbles */
+    const exchange = makeEl('div', 'research-exchange');
+
+    const userBubble = makeEl('div', 'exchange-bubble exchange-user');
+    userBubble.appendChild(makeEl('div', 'exchange-label', 'Youth'));
+    userBubble.appendChild(document.createTextNode(row.user_message || '—'));
+    exchange.appendChild(userBubble);
+
+    const kaiBubble = makeEl('div', 'exchange-bubble exchange-kai');
+    kaiBubble.appendChild(makeEl('div', 'exchange-label', 'Kai'));
+    kaiBubble.appendChild(document.createTextNode(row.assistant_message || '—'));
+    exchange.appendChild(kaiBubble);
+
+    wrap.appendChild(exchange);
+    return wrap;
+  }
+
+  async function loadResearch() {
+    const kpisContainer = document.getElementById('research-kpis');
+    const list = document.getElementById('research-list');
+    kpisContainer.replaceChildren(makeSpinner('Loading metrics…'));
+    list.replaceChildren(makeSpinner('Loading conversations…'));
+    try {
+      const [kpis, conversations] = await Promise.all([
+        api('/v1/analytics/kpis'),
+        api('/research/conversations?purpose=pilot-review')
+      ]);
+      renderKpis('research-kpis', kpis.kpis || kpis);
+
+      const items = conversations.items || conversations || [];
+      list.replaceChildren();
+      if (!items.length) {
+        list.appendChild(makeEl('div', 'state-message', 'No conversations authorized for review.'));
+        return;
+      }
+      items.forEach(row => list.appendChild(buildResearchRow(row)));
+    } catch (err) {
+      kpisContainer.replaceChildren(makeEl('div', 'state-message', 'Failed to load metrics: ' + err.message));
+      list.replaceChildren(makeEl('div', 'state-message', 'Could not load conversations: ' + err.message));
+    }
+  }
+
+  document.getElementById('refresh-research-btn').addEventListener('click', loadResearch);
+
+  /* ── Invite modal ── */
+  document.getElementById('invite-btn').addEventListener('click', () => {
+    document.getElementById('invite-email').value = '';
+    const result = document.getElementById('invite-result');
+    result.style.display = 'none';
+    result.textContent   = '';
+    inviteModal.hidden   = false;
+  });
+
+  document.getElementById('invite-cancel').addEventListener('click', () => { inviteModal.hidden = true; });
+  inviteModal.addEventListener('click', (e) => { if (e.target === inviteModal) inviteModal.hidden = true; });
+
+  document.getElementById('invite-submit').addEventListener('click', async () => {
+    const email  = document.getElementById('invite-email').value.trim();
+    const role   = document.getElementById('invite-role').value;
+    const result = document.getElementById('invite-result');
+    const btn    = document.getElementById('invite-submit');
+
+    if (!email) {
+      result.style.display = 'block';
+      result.style.color   = 'var(--danger)';
+      result.textContent   = 'Enter a valid email address.';
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Creating…';
+    result.style.display = 'none';
+    result.textContent   = '';
+    try {
+      const data = await api('/auth/invites', {
+        method: 'POST',
+        body: JSON.stringify({ email, role })
+      });
+      const token = data.invite_token || data.token || JSON.stringify(data);
+      result.style.display = 'block';
+      result.style.color   = 'var(--success)';
+      result.textContent   = '✓ Invite created. Token: ' + token;
+    } catch (err) {
+      result.style.display = 'block';
+      result.style.color   = 'var(--danger)';
+      result.textContent   = err.message;
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Create invite';
+    }
+  });
+
+  /* ── Auto-login from existing session ── */
+  if (session?.access_token && session?.user && ADMIN_ROLES.includes(session.user.role)) {
+    enterApp(session.user);
+  }
+
+})();
+</script>
+</body>
+</html>

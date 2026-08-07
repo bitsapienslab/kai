@@ -3,16 +3,18 @@ from datetime import datetime, timedelta
 from secrets import token_urlsafe
 from sqlalchemy import func, select
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from .config import settings
 from .db import Base, engine, get_db
 from .dependencies import CurrentUser, current_user, require_roles
 from .guardrails import inspect_message, kai_system_prompt, safety_category
 from .models import AdaptiveProfile, AuditEvent, Consent, ConversationEvent, Evidence, GuardianYouth, Invitation, Mission, Objective, ProactiveNotification, ProactivePreference, PushSubscription, RefreshSession, SafetyCase, Tenant, User
-from .schemas import AdaptiveFeedback, ChatRequest, CommitmentCreate, ConsentUpdate, EvidenceCreate, InviteCreate, LoginRequest, MissionCreate, MissionFeedback, NotificationFeedback, OnboardingUpdate, ProactivePreferenceUpdate, PushSubscriptionCreate, RefreshRequest, RegisterRequest
+from .schemas import AdaptiveFeedback, ChatRequest, CommitmentCreate, ConsentUpdate, EvidenceCreate, InviteCreate, LoginRequest, MissionCreate, MissionFeedback, MissionStatusUpdate, NotificationFeedback, ObjectiveUpdate, OnboardingUpdate, ProactivePreferenceUpdate, PushSubscriptionCreate, RefreshRequest, RegisterRequest
 from .security import ACCESS_MINUTES, REFRESH_DAYS, create_token, decode_token, hash_password, verify_password
 
 app = FastAPI(title="RISE API", version="0.2.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.on_event("startup")
 def startup() -> None:
@@ -36,7 +38,7 @@ def pseudonym(tenant_id: str, user_id: str) -> str:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "bussola-api", "model": settings.model_name}
+    return {"status": "ok", "service": "rise-api", "model": settings.model_name}
 
 @app.post("/auth/register")
 def register(body: RegisterRequest, db: Session = Depends(get_db)) -> dict:
@@ -47,6 +49,8 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> dict:
         invite = db.scalar(select(Invitation).where(Invitation.token_hash == token_hash(body.invite_token)))
         if not invite or invite.accepted_at or invite.expires_at < datetime.utcnow(): raise HTTPException(400, "Invitation is invalid or expired")
         tenant_id, role = invite.tenant_id, invite.role
+    elif not body.tenant_name and not body.invite_token:
+        tenant = Tenant(name=f"{body.display_name} — personal"); db.add(tenant); db.flush(); tenant_id = tenant.id; role = "youth"
     elif not body.tenant_name:
         raise HTTPException(400, "tenant_name or invite_token is required")
     if db.scalar(select(User).where(User.tenant_id == tenant_id, User.email == body.email.lower())): raise HTTPException(409, "Email already registered")
@@ -104,10 +108,27 @@ def update_consent(user_id: str, body: ConsentUpdate, identity: CurrentUser = De
     if identity.user.id != user_id and identity.user.role not in {"guardian", "organization_admin", "platform_admin"}: raise HTTPException(403, "Not allowed")
     row = Consent(tenant_id=identity.user.tenant_id, user_id=user_id, kind=body.kind, granted=body.granted, granted_by=identity.user.id); db.add(row); db.commit(); return {"id": row.id, "kind": row.kind, "granted": row.granted}
 
+@app.get("/me/objectives")
+def list_objectives(identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    rows = db.scalars(select(Objective).where(Objective.user_id == identity.user.id).order_by(Objective.due_at.asc().nullslast())).all()
+    return {"items": [{"id": r.id, "title": r.title, "action": r.action, "why": r.why, "proof": r.proof, "status": r.status, "progress": r.progress, "due_at": r.due_at} for r in rows]}
+
 @app.post("/v1/users/{user_id}/objectives")
 def create_commitment(user_id: str, body: CommitmentCreate, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
     if identity.user.id != user_id and identity.user.role not in {"guardian", "organization_admin", "platform_admin"}: raise HTTPException(403, "Not allowed")
     row = Objective(tenant_id=identity.user.tenant_id, user_id=user_id, **body.model_dump()); db.add(row); db.commit(); db.refresh(row); return {"id": row.id, "status": row.status, **body.model_dump()}
+
+@app.post("/me/objectives")
+def create_my_objective(body: CommitmentCreate, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    row = Objective(tenant_id=identity.user.tenant_id, user_id=identity.user.id, **body.model_dump()); db.add(row); db.commit(); db.refresh(row); return {"id": row.id, "status": row.status, **body.model_dump()}
+
+@app.patch("/me/objectives/{objective_id}")
+def update_objective(objective_id: str, body: ObjectiveUpdate, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    row = db.scalar(select(Objective).where(Objective.id == objective_id, Objective.user_id == identity.user.id))
+    if not row: raise HTTPException(404, "Objective not found")
+    if body.status is not None: row.status = body.status
+    if body.progress is not None: row.progress = body.progress
+    db.commit(); return {"id": row.id, "status": row.status, "progress": row.progress}
 
 def ensure_profile(identity: CurrentUser, db: Session) -> AdaptiveProfile:
     profile = db.get(AdaptiveProfile, identity.user.id)
@@ -122,15 +143,15 @@ def today(identity: CurrentUser = Depends(current_user), db: Session = Depends(g
     objective = db.scalar(select(Objective).where(Objective.user_id == identity.user.id, Objective.status == "active").order_by(Objective.due_at.asc().nullslast()).limit(1))
     evidence = db.scalar(select(Evidence).where(Evidence.user_id == identity.user.id).order_by(Evidence.created_at.desc()).limit(1))
     if mission:
-        orientation = {"title": "A tua próxima experiência", "body": mission.hypothesis, "reason": "Existe uma missão ativa que pode produzir informação real."}
+        orientation = {"title": "Your next experience", "body": mission.hypothesis, "reason": "There is an active mission that can produce real information."}
         action = {"id": mission.id, "title": mission.title, "body": mission.action, "proof": mission.proof, "kind": "mission"}
     elif objective:
-        orientation = {"title": "Uma coisa de cada vez", "body": "Há um compromisso teu que ainda merece uma decisão clara.", "reason": "Prioridade baseada no prazo e no teu compromisso ativo."}
+        orientation = {"title": "One thing at a time", "body": "You have a commitment that still deserves a clear decision.", "reason": "Priority based on deadline and your active commitment."}
         action = {"id": objective.id, "title": objective.title, "body": objective.action, "proof": objective.proof, "kind": "objective"}
     else:
-        orientation = {"title": "O que merece a tua atenção?", "body": "Escolhe uma pequena ação que produza aprendizagem hoje.", "reason": "Não há compromissos ativos; o sistema devolve a escolha ao jovem."}
+        orientation = {"title": "What deserves your attention?", "body": "Choose a small action that produces learning today.", "reason": "No active commitments; the choice returns to you."}
         action = None
-    reflection = {"title": "Leva a aprendizagem contigo", "body": f"A tua evidência mais recente: {evidence.statement}", "kind": "evidence"} if evidence else {"title": "Regista o que descobrires", "body": "Uma experiência só se torna aprendizagem quando reparas no que aconteceu.", "kind": "reflection"}
+    reflection = {"title": "Take the learning with you", "body": f"Your most recent evidence: {evidence.statement}", "kind": "evidence"} if evidence else {"title": "Record what you discover", "body": "An experience only becomes learning when you notice what happened.", "kind": "reflection"}
     db.commit(); return {"orientation": orientation, "action": action, "reflection": reflection, "adaptive": {"mode": profile.preferred_mode, "autonomy_level": profile.autonomy_level, "challenge_tolerance": profile.challenge_tolerance}}
 
 @app.get("/me/adaptive-profile")
@@ -141,15 +162,30 @@ def adaptive_profile(identity: CurrentUser = Depends(current_user), db: Session 
 def adaptive_feedback(body: AdaptiveFeedback, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
     profile = ensure_profile(identity, db); profile.inference_log = [*profile.inference_log, {"id": body.hypothesis_id, "accepted": body.accepted, "correction": body.correction, "at": datetime.utcnow().isoformat()}][-50:]; profile.updated_at = datetime.utcnow(); db.commit(); return {"ok": True}
 
+@app.get("/me/missions")
+def list_missions(identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    rows = db.scalars(select(Mission).where(Mission.user_id == identity.user.id).order_by(Mission.created_at.desc())).all()
+    return {"items": [{"id": r.id, "title": r.title, "mission_type": r.mission_type, "hypothesis": r.hypothesis, "action": r.action, "proof": r.proof, "status": r.status, "learning": r.learning, "due_at": r.due_at, "created_at": r.created_at} for r in rows]}
+
 @app.post("/me/missions")
 def create_mission(body: MissionCreate, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
     row = Mission(tenant_id=identity.user.tenant_id, user_id=identity.user.id, **body.model_dump()); db.add(row); db.commit(); db.refresh(row); return {"id": row.id, "status": row.status, **body.model_dump()}
+
+@app.patch("/me/missions/{mission_id}")
+def update_mission(mission_id: str, body: MissionStatusUpdate, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    row = db.scalar(select(Mission).where(Mission.id == mission_id, Mission.user_id == identity.user.id))
+    if not row: raise HTTPException(404, "Mission not found")
+    row.status = body.status; db.commit(); return {"id": row.id, "status": row.status}
 
 @app.post("/me/missions/{mission_id}/feedback")
 def mission_feedback(mission_id: str, body: MissionFeedback, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
     row = db.scalar(select(Mission).where(Mission.id == mission_id, Mission.user_id == identity.user.id))
     if not row: raise HTTPException(404, "Mission not found")
     row.learning = body.learning; row.status = body.status; db.commit(); return {"id": row.id, "status": row.status, "learning": row.learning}
+
+@app.post("/me/missions/{mission_id}/complete")
+def complete_mission(mission_id: str, body: MissionFeedback, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    return mission_feedback(mission_id, body, identity, db)
 
 @app.get("/me/evidence")
 def evidence(identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
@@ -162,6 +198,27 @@ def create_evidence(body: EvidenceCreate, identity: CurrentUser = Depends(curren
 @app.get("/me/progress")
 def progress(identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
     total = db.scalar(select(func.count(Mission.id)).where(Mission.user_id == identity.user.id)) or 0; completed = db.scalar(select(func.count(Mission.id)).where(Mission.user_id == identity.user.id, Mission.status == "completed")) or 0; evidence_count = db.scalar(select(func.count(Evidence.id)).where(Evidence.user_id == identity.user.id)) or 0; return {"missions_started": total, "missions_completed": completed, "evidence_count": evidence_count, "completion_rate": round(completed / total * 100, 1) if total else 0}
+
+@app.get("/me/world")
+def world(identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    DISTRICT_KEYWORDS = {"social": ["social", "relacion", "friend", "comunidade"], "learning": ["learning", "aprendizagem", "study", "conhecimento"], "health": ["health", "saúde", "fitness", "mental"], "creative": ["creative", "criativ", "arte", "design"], "projects": ["project", "projeto", "negócio"], "self_knowledge": ["self", "autoconhec", "identidade"]}
+    all_evidence = db.scalars(select(Evidence).where(Evidence.user_id == identity.user.id)).all()
+    all_missions = db.scalars(select(Mission).where(Mission.user_id == identity.user.id)).all()
+    def _level(n: int) -> str:
+        if n <= 0: return "seed"
+        if n <= 5: return "growing"
+        if n <= 10: return "established"
+        return "strong"
+    def _energy(ev: int) -> str:
+        if ev == 0: return "medium"
+        if ev <= 3: return "high"
+        return "active"
+    districts = {}
+    for name, kws in DISTRICT_KEYWORDS.items():
+        ev = [e for e in all_evidence if any(k in (e.competency or "").lower() for k in kws)]
+        ms = [m for m in all_missions if any(k in (m.title or "").lower() for k in kws)]
+        districts[name] = {"legacy_level": _level(len(ev) + len(ms)), "current_energy": _energy(len(ev))}
+    return {"districts": districts}
 
 @app.post("/me/push-subscriptions")
 def push_subscription(body: PushSubscriptionCreate, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
@@ -197,7 +254,7 @@ def proactive_check(identity: CurrentUser = Depends(current_user), db: Session =
     for objective in objectives:
         existing = db.scalar(select(ProactiveNotification).where(ProactiveNotification.objective_id == objective.id, ProactiveNotification.sent_at.is_(None)))
         if not existing:
-            item = ProactiveNotification(user_id=identity.user.id, tenant_id=identity.user.tenant_id, objective_id=objective.id, title="Vamos rever o teu compromisso", body=f"Ficou planeado: {objective.action}. Que prova tens até agora?", scheduled_for=datetime.utcnow()); db.add(item); db.flush()
+            item = ProactiveNotification(user_id=identity.user.id, tenant_id=identity.user.tenant_id, objective_id=objective.id, title="Let's review your commitment", body=f"You planned: {objective.action}. What proof do you have so far?", scheduled_for=datetime.utcnow()); db.add(item); db.flush()
         else: item = existing
         items.append({"id": item.id, "title": item.title, "body": item.body, "objective_id": item.objective_id})
     db.commit(); return {"items": items}
@@ -210,7 +267,17 @@ def proactive_feedback(notification_id: str, body: NotificationFeedback, identit
 
 @app.post("/v1/openwebui/chat/completions")
 def openwebui_chat(body: ChatRequest, identity: CurrentUser = Depends(current_user), db: Session = Depends(get_db)) -> dict:
-    safety = inspect_message(body.message); answer = safety.response if safety.action != "allow" else "Vamos tornar isto concreto. O que está sob o teu controlo e qual é a menor ação que podes testar hoje?"
+    safety = inspect_message(body.message)
+    if safety.action != "allow":
+        answer = safety.response
+    elif any(w in body.message.lower() for w in ["desafio", "challenge", "difícil", "hard", "difficult"]):
+        answer = "Ok. Here is something small: choose a 2-minute conversation with someone you normally ignore. It does not need to be deep — just real."
+    elif any(w in body.message.lower() for w in ["fácil", "easier", "simples", "demais", "simple", "too much"]):
+        answer = "Fair. Let's reduce it: instead of the full action, do just the first part — open the book, send the message, or walk into the room. That counts."
+    elif any(w in body.message.lower() for w in ["hoje não", "not today", "não consigo", "cansado", "can't", "tired"]):
+        answer = "That's okay. Today is not a day to force it. Do you want to record what's blocking you, or come back tomorrow with calm?"
+    else:
+        answer = "Let's make this concrete. What is under your control right now, and what is the smallest action you can test in the next few hours?"
     event = ConversationEvent(tenant_id=identity.user.tenant_id, user_id=identity.user.id, pseudonym=pseudonym(identity.user.tenant_id, identity.user.id), risk_level=safety.level, user_message=body.message, assistant_message=answer); db.add(event); db.commit()
     return {"id": event.id, "object": "chat.completion", "model": settings.model_name, "choices": [{"index": 0, "message": {"role": "assistant", "content": answer}, "finish_reason": "stop"}], "safety": {"level": safety.level, "action": safety.action}}
 
@@ -245,4 +312,4 @@ def research_audit(identity: CurrentUser = Depends(require_roles("researcher", "
 
 @app.get("/v1/kai/policy")
 def policy(identity: CurrentUser = Depends(current_user)) -> dict:
-    return {"name": "NORTE/Kai", "system_prompt": kai_system_prompt(), "proactivity": {"default": "normal", "max_per_day": 1}}
+    return {"name": "RISE/Kai", "system_prompt": kai_system_prompt(), "proactivity": {"default": "normal", "max_per_day": 1}}

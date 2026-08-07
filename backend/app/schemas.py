@@ -95,3 +95,10 @@ class ConsentUpdate(BaseModel):
     kind: str
     granted: bool
     granted_by: str
+
+class ObjectiveUpdate(BaseModel):
+    status: str | None = None
+    progress: int | None = Field(default=None, ge=0, le=100)
+
+class MissionStatusUpdate(BaseModel):
+    status: str
